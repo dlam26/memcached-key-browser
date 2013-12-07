@@ -14,6 +14,7 @@
 from Tkinter import *
 from ScrolledText import ScrolledText
 import telnetlib
+import time
 
 STATS_ITEM_HELP_MSG = """
 Format:
@@ -21,8 +22,12 @@ Format:
          <prefix>:<key> [<size> b;  <expiration timestamp> s]
 
 """
+CURR_EPOCH_TIME = """
+Epoch Time:  {0}
 
+""".format(int(time.time()))
 MEMCACHED_END = "END"
+
 output = ''
 tn = telnetlib.Telnet("localhost", 11211)
 tn.write("stats items\r\n")
@@ -33,13 +38,14 @@ for line in items.split("\r\n"):
         items, slab_id, stat_name = slab.split(':')
         if stat_name == 'number' and count > 0:
             output += '\n\n\t------------ Slab {0} -------------'.format(slab_id, count)
-            tn.write("stats cachedump {0} {1}\r\n".format( slab_id, count))
+            tn.write("stats cachedump {0} {1}\r\n".format(slab_id, count))
             output += tn.read_until(MEMCACHED_END)
 
-output = STATS_ITEM_HELP_MSG + output
+output = CURR_EPOCH_TIME + STATS_ITEM_HELP_MSG + output
 
 for i in range(3):      # print some horizontal separator bars
     print '=' * 80
+print CURR_EPOCH_TIME
 print STATS_ITEM_HELP_MSG
 
 root = Tk()
