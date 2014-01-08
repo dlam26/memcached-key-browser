@@ -4,8 +4,10 @@
     memcached key values!
 
     good reads:
-
+        http://effbot.org/tkinterbook/
         http://effbot.org/tkinterbook/pack.htm
+        http://effbot.org/tkinterbook/grid.htm
+
 
         Q. How to center a window on screen?
         A. http://stackoverflow.com/questions/14910858/
@@ -15,6 +17,9 @@ from Tkinter import *
 from ScrolledText import ScrolledText
 import telnetlib
 import time
+
+USE_GRID = False
+"""http://effbot.org/tkinterbook/grid.htm"""
 
 STATS_ITEM_HELP_MSG = """
 Format:
@@ -26,6 +31,7 @@ CURR_EPOCH_TIME = """
 Epoch Time:  {0}
 
 """.format(int(time.time()))
+
 MEMCACHED_END = "END"
 
 output = ''
@@ -55,10 +61,14 @@ x = (ws/2) - (w/2)   # find the x,y coordinates, of a centered point
 y = (hs/2) - (h/2)
 root.geometry('%dx%d+%d+%d' % (w, h, x, y))  # set dimensions of the screen and where it is placed
 
-#  http://stackoverflow.com/questions/17657212/how-to-code-the-tkinter-scrolledtext-module
-keys_display = ScrolledText(root, width=400, height=400,)
-keys_display.pack(side=LEFT, padx=5, pady=5, fill=BOTH, expand=True)
-keys_display.insert(INSERT, output)
+if USE_GRID:
+    for i, line in enumerate(output):
+        Label(root, text=line).grid(row=i, column=1)
+else:
+    #  http://stackoverflow.com/questions/17657212/how-to-code-the-tkinter-scrolledtext-module
+    keys_display = ScrolledText(root, width=400, height=400,)
+    keys_display.pack(side=LEFT, padx=5, pady=5, fill=BOTH, expand=True)
+    keys_display.insert(INSERT, output)
 
 def callback():
     print "click!"
