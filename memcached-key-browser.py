@@ -39,12 +39,11 @@ Format:
          <prefix>:<key> [<size> b;  <expiration timestamp> s]
 
 """
-CURR_EPOCH_TIME = """
-Epoch Time:  {0}
-
-""".format(int(time.time()))
 
 MEMCACHED_END = "END"
+
+def format_epoch_timestamp(ts):
+    return time.strftime('%m/%d/%Y %I:%M %p',  time.gmtime(float(ts)))
 
 output = ''
 tn = telnetlib.Telnet("localhost", 11211)
@@ -62,10 +61,16 @@ for line in items.split("\r\n"):
 
 for i in range(3):      # print some horizontal separator bars
     print '=' * 80
-print CURR_EPOCH_TIME
+
+print """
+Epoch Time:  {0}
+
+""".format(int(time.time()))
+
 print STATS_ITEM_HELP_MSG
 
 root = tk.Tk()
+root.wm_title('Browsing keys in memcached at {0}:{1}'.format(tn.host, tn.port))
 w, h, ws, hs = 1000, 750,  root.winfo_screenwidth(), root.winfo_screenheight()
 x = (ws/2) - (w/2)   # find the x,y coordinates, of a centered point
 y = (hs/2) - (h/2)
@@ -75,6 +80,7 @@ if USE_LISTBOX:
     frame = tk.Frame(root)
     frame.pack(fill=tk.BOTH, expand=tk.YES)
     listbox = tk.Listbox(frame)
+    listbox.configure(background='HotPink1')
     listbox.pack(fill=tk.BOTH, expand=tk.YES)
     for i, line in enumerate(output.split("\n")):
         listbox.insert(i, line)
@@ -90,12 +96,18 @@ if USE_LISTBOX:
         cachedump_line = listbox.get(index)
 
         toks = cachedump_line.split()
-        if toks[0] == 'ITEM':
-            key = toks[1]
-            size_and_expiry = toks[2:]
-            tn.write("get {0}\r\n".format(key))
-            value = tn.read_until(MEMCACHED_END)
-            print("*** value of key '{0}' is... {1}".format(key, value))
+        try:
+            if toks[0] == 'ITEM':
+                key = toks[1]
+                size_and_expiry = toks[2:]
+                size = size_and_expiry[0]
+                expiry = size_and_expiry[2]
+                tn.write("get {0}\r\n".format(key))
+                value = tn.read_until(MEMCACHED_END)
+                print("*** value of key '{0}' which expires {1} is... {2}".format(
+                      key, format_epoch_timestamp(expiry), value))
+        except IndexError:
+            pass
 
     listbox.bind('<<ListboxSelect>>', handleClick)
 
