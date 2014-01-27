@@ -12,11 +12,23 @@
         Q. How to center a window on screen?
         A. http://stackoverflow.com/questions/14910858/
 
+
+    TODO
+        - show expiry timestamp formatted as a readable datetime!
+
+
 """
-from Tkinter import *
+
+
+import Tkinter as tk
 from ScrolledText import ScrolledText
 import telnetlib
 import time
+
+USE_LISTBOX = True
+"""http://effbot.org/tkinterbook/listbox.htm
+   http://stackoverflow.com/questions/8647735/tkinter-listbox
+"""
 
 USE_GRID = False
 """http://effbot.org/tkinterbook/grid.htm"""
@@ -47,35 +59,56 @@ for line in items.split("\r\n"):
             tn.write("stats cachedump {0} {1}\r\n".format(slab_id, count))
             output += tn.read_until(MEMCACHED_END)
 
-output = CURR_EPOCH_TIME + STATS_ITEM_HELP_MSG + output
 
 for i in range(3):      # print some horizontal separator bars
     print '=' * 80
 print CURR_EPOCH_TIME
 print STATS_ITEM_HELP_MSG
 
-root = Tk()
+root = tk.Tk()
 w, h, ws, hs = 1000, 750,  root.winfo_screenwidth(), root.winfo_screenheight()
-
 x = (ws/2) - (w/2)   # find the x,y coordinates, of a centered point
 y = (hs/2) - (h/2)
 root.geometry('%dx%d+%d+%d' % (w, h, x, y))  # set dimensions of the screen and where it is placed
 
-if USE_GRID:
-    for i, line in enumerate(output):
-        Label(root, text=line).grid(row=i, column=1)
+if USE_LISTBOX:
+    frame = tk.Frame(root)
+    frame.pack(fill=tk.BOTH, expand=tk.YES)
+    listbox = tk.Listbox(frame)
+    listbox.pack(fill=tk.BOTH, expand=tk.YES)
+    for i, line in enumerate(output.split("\n")):
+        listbox.insert(i, line)
+
+    scrollbar = tk.Scrollbar(listbox, orient=tk.VERTICAL)
+    scrollbar.config(command=listbox.yview)
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    listbox.config(yscrollcommand=scrollbar.set)  # moving one, moves the other
+
+    def handleClick(event):  #   event is a tkinter.Event
+#         index = listbox.curselection()
+        index = event.widget.curselection()
+        cachedump_line = listbox.get(index)
+
+        toks = cachedump_line.split()
+        if toks[0] == 'ITEM':
+            key = toks[1]
+            size_and_expiry = toks[2:]
+            tn.write("get {0}\r\n".format(key))
+            value = tn.read_until(MEMCACHED_END)
+            print("*** value of key '{0}' is... {1}".format(key, value))
+
+    listbox.bind('<<ListboxSelect>>', handleClick)
+
+
+elif USE_GRID:
+    for i, line in enumerate(output.split("\n")):
+        tk.Label(root, text=line).grid(row=i, column=1)
 else:
     #  http://stackoverflow.com/questions/17657212/how-to-code-the-tkinter-scrolledtext-module
     keys_display = ScrolledText(root, width=400, height=400,)
-    keys_display.pack(side=LEFT, padx=5, pady=5, fill=BOTH, expand=True)
-    keys_display.insert(INSERT, output)
+    keys_display.pack(side=tk.LEFT, padx=5, pady=5, fill=tk.BOTH, expand=True)
+    keys_display.insert(tk.INSERT, output)
 
-def callback():
-    print "click!"
-b = Button(root, text="OK", command=callback)
-b.pack()
 
-quit = Button(root, text='Quit')    # FIXME
-quit.pack(side=RIGHT, anchor=NE)
 
 root.mainloop()

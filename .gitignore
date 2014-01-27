@@ -3,3 +3,5 @@
 *.pyc
 tags
 manage.py
+tkinter-constants.py
+protocol.txt
