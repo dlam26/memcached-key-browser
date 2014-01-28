@@ -14,7 +14,11 @@
 
 
     TODO
-        - show expiry timestamp formatted as a readable datetime!
+        - make classes!
+
+        - system clipboard?   Maybe see how IDLE does it cross platform!
+
+            http://stackoverflow.com/questions/579687/how-do-i-copy-a-string-to-the-clipboard-on-windows-using-python/4203897#4203897
 
 
 """
@@ -22,6 +26,8 @@
 
 import Tkinter as tk
 from ScrolledText import ScrolledText
+from sys import platform as _platform
+import os
 import telnetlib
 import time
 
@@ -42,8 +48,44 @@ Format:
 
 MEMCACHED_END = "END"
 
+popups = list()
+
 def format_epoch_timestamp(ts):
     return time.strftime('%m/%d/%Y %I:%M %p',  time.gmtime(float(ts)))
+
+
+def clear_popups(foo=None):
+    for p in popups:
+        p.destroy()
+    popups[:] = []      # clear the list!
+
+def open_popup(with_this_text='', and_this_title=''):
+    clear_popups()
+    popup = tk.Toplevel()
+    popup.title('Displaying key')
+    popup.bind('<q>', clear_popups)
+    popups.append(popup)
+    text_widget = tk.Text(popup, borderwidth=0)
+    text_widget.insert(tk.INSERT, with_this_text)
+    text_widget.grid(row=2, column=1)
+
+    def copy_to_clipboard():
+        # FIXME
+        if _platform == 'darwin':
+            cmd = u'echo %s | tr -d "\n" | pbcopy' % unicode(text_widget.selection_get())
+#             print u'cmd: ' + unicode(cmd)
+            os.system(cmd)
+        else:
+            # for some reason, the the basic tkinter clipboard interface
+            # dosen't work on Mac 10.8!   See "Programming Python" pg. 537
+            root.clipboard_clear()
+            root.clipboard_append(text_widget.selection_get())
+
+    tk.Label(popup, text=and_this_title, justify=tk.LEFT, anchor=tk.W).grid(row=1, column=1)
+    tk.Button(popup, text='Close', command=popup.destroy).grid(row=1, column=2)
+    tk.Button(popup, text='Copy', command=copy_to_clipboard).grid(row=1, column=3)
+
+
 
 output = ''
 tn = telnetlib.Telnet("localhost", 11211)
@@ -106,6 +148,9 @@ if USE_LISTBOX:
                 value = tn.read_until(MEMCACHED_END)
                 print("*** value of key '{0}' which expires {1} is... {2}".format(
                       key, format_epoch_timestamp(expiry), value))
+                open_popup(value.decode('unicode-escape'),
+                           'Expires ' + format_epoch_timestamp(expiry))
+
         except IndexError:
             pass
 
@@ -120,7 +165,6 @@ else:
     keys_display = ScrolledText(root, width=400, height=400,)
     keys_display.pack(side=tk.LEFT, padx=5, pady=5, fill=tk.BOTH, expand=True)
     keys_display.insert(tk.INSERT, output)
-
 
 
 root.mainloop()
