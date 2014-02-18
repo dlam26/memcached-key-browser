@@ -62,8 +62,8 @@ def clear_popups(foo=None):
 def open_popup(with_this_text='', and_this_title=''):
     clear_popups()
     popup = tk.Toplevel()
-    popup.title('Displaying key')
-    popup.bind('<q>', clear_popups)
+    popup.title("c to close window")
+    popup.bind('<c>', clear_popups)
     popups.append(popup)
     text_widget = tk.Text(popup, borderwidth=0)
     text_widget.insert(tk.INSERT, with_this_text)
@@ -112,11 +112,24 @@ Epoch Time:  {0}
 print STATS_ITEM_HELP_MSG
 
 root = tk.Tk()
-root.wm_title('Browsing keys in memcached at {0}:{1}'.format(tn.host, tn.port))
+root.wm_title('Browsing keys in memcached at {0}:{1}   (press Q to quit)  '.format(tn.host, tn.port))
 w, h, ws, hs = 1000, 750,  root.winfo_screenwidth(), root.winfo_screenheight()
 x = (ws/2) - (w/2)   # find the x,y coordinates, of a centered point
 y = (hs/2) - (h/2)
 root.geometry('%dx%d+%d+%d' % (w, h, x, y))  # set dimensions of the screen and where it is placed
+
+
+def jKey(event):
+    print 'pressed letter j!'
+root.bind('<j>', jKey)
+
+def kKey(event):
+    print 'pressed letter k!'
+root.bind('<k>', kKey)
+
+def quit(event):
+    root.quit()
+root.bind('<Q>', quit)
 
 if USE_LISTBOX:
     frame = tk.Frame(root)
