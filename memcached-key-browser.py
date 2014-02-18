@@ -48,6 +48,7 @@ def clear_popups(foo=None):
     popups[:] = []      # clear the list!
 
 def open_popup(with_this_text='', and_this_title=''):
+    """Opens tkinter Toplevel widget containing given text and title!"""
     clear_popups()
     popup = tk.Toplevel()
     popup.title("c to close window")
@@ -99,7 +100,7 @@ Epoch Time:  {0}
 
 root = tk.Tk()
 root.wm_title('Browsing keys in memcached at {0}:{1}   (press Q to quit)  '.format(tn.host, tn.port))
-w, h, ws, hs = 1000, 750,  root.winfo_screenwidth(), root.winfo_screenheight()
+w, h, ws, hs = 1000, 700,  root.winfo_screenwidth(), root.winfo_screenheight()
 x = (ws/2) - (w/2)   # find the x,y coordinates, of a centered point
 y = (hs/2) - (h/2)
 root.geometry('%dx%d+%d+%d' % (w, h, x, y))  # set dimensions of the screen and where it is placed
@@ -117,10 +118,13 @@ def quit(event):
     root.quit()
 root.bind('<Q>', quit)
 
-
 # ...now build the UI!
 
-frame = tk.Frame(root)
+key_browser = tk.PanedWindow(orient=tk.VERTICAL)
+key_browser.pack(fill=tk.BOTH, expand=tk.YES)
+
+# frame = tk.Frame(root)
+frame = tk.Frame()
 frame.pack(fill=tk.BOTH, expand=tk.YES)
 listbox = tk.Listbox(frame)
 listbox.configure(background='HotPink1')
@@ -128,16 +132,27 @@ listbox.pack(fill=tk.BOTH, expand=tk.YES)
 for i, line in enumerate(output.split("\n")):
     listbox.insert(i, line)
 
+key_browser.add(frame, height=root.winfo_screenheight() * 0.70)
+
+value_display = tk.Text(key_browser, background='Orange')
+value_display.insert(tk.INSERT, 'Clicking on a key above ^ and its value will will display here.')
+key_browser.add(value_display)
+
+
 scrollbar = tk.Scrollbar(listbox, orient=tk.VERTICAL)
 scrollbar.config(command=listbox.yview)
 scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 listbox.config(yscrollcommand=scrollbar.set)  # moving one, moves the other
 
-def handleClick(event):  #   event is a tkinter.Event
-#         index = listbox.curselection()
+def selectedKey(event):
+    """Display value of key in memcached!
+
+    'event' is a tkinter.Event
+
+    """
+    value_display.delete("1.0", tk.END)   # clear the display
     index = event.widget.curselection()
     cachedump_line = listbox.get(index)
-
     toks = cachedump_line.split()
     try:
         if toks[0] == 'ITEM':
@@ -149,12 +164,15 @@ def handleClick(event):  #   event is a tkinter.Event
             value = tn.read_until(MEMCACHED_END)
             print("*** value of key '{0}' which expires {1} is... {2}".format(
                   key, format_epoch_timestamp(expiry), value))
-            open_popup(value.decode('unicode-escape'),
-                       'Expires ' + format_epoch_timestamp(expiry))
+
+            value_escaped = value.decode('unicode-escape')
+            value_display.insert(tk.INSERT, value_escaped)
+
+#           open_popup(value_escaped, 'Expires ' + format_epoch_timestamp(expiry))
 
     except IndexError:
         pass
 
-listbox.bind('<<ListboxSelect>>', handleClick)
+listbox.bind('<<ListboxSelect>>', selectedKey)
 
-root.mainloop()
+tk.mainloop()
