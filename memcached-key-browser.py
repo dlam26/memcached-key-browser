@@ -127,24 +127,26 @@ root.bind('<Q>', quit)
 
 # ...now build the UI!
 
-key_browser = tk.PanedWindow(orient=tk.VERTICAL)
+key_browser = tk.PanedWindow(master=root, orient=tk.VERTICAL)
 key_browser.pack(fill=tk.BOTH, expand=tk.YES)
 
-# frame = tk.Frame(root)
-frame = tk.Frame()
-frame.pack(fill=tk.BOTH, expand=tk.YES)
-listbox = tk.Listbox(frame)
+list_of_keys_frame = tk.Frame(root)
+list_of_keys_frame.pack(fill=tk.BOTH, expand=tk.YES)
+listbox = tk.Listbox(list_of_keys_frame)
 listbox.configure(background='HotPink1')
 listbox.pack(fill=tk.BOTH, expand=tk.YES)
 for i, line in enumerate(output.split("\n")):
     listbox.insert(i, line)
 
-key_browser.add(frame, height=root.winfo_screenheight() * 0.70)
+# Make list of keys 70% of the screen!
+# Also .winfo_height() can return 1, so that's why we call update_idletasks()
+# http://effbot.org/tkinterbook/widget.htm#Tkinter.Widget.winfo_height-method
+root.update_idletasks()
+key_browser.add(list_of_keys_frame, height=root.winfo_height() * 0.70)
 
 value_display = tk.Text(key_browser, background='Orange')
 value_display.insert(tk.INSERT, 'Clicking on a key above ^ and its value will will display here.')
 key_browser.add(value_display)
-
 
 scrollbar = tk.Scrollbar(listbox, orient=tk.VERTICAL)
 scrollbar.config(command=listbox.yview)
@@ -169,8 +171,9 @@ def selectedKey(event):
             expiry = size_and_expiry[2]
             tn.write("get {0}\r\n".format(key))
             value = tn.read_until(MEMCACHED_END)
-            print("*** value of key '{0}' which expires {1} is... {2}".format(
-                  key, format_epoch_timestamp(expiry), value))
+            value =  '\n'.join(value.split('\n')[:-1])   # remove last line, which is a END
+            print("*** value of key '{0}' of size {1} which expires {2} is... {3}".format(
+                  key, size[1:], format_epoch_timestamp(expiry), value))
 
             value_escaped = value.decode('unicode-escape')
             value_display.insert(tk.INSERT, value_escaped)
