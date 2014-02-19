@@ -21,9 +21,17 @@
 
             http://stackoverflow.com/questions/579687/how-do-i-copy-a-string-to-the-clipboard-on-windows-using-python/4203897#4203897
 
+    FIXME
+        - if a key value has the string 'END' anywhere, the
+          displayed value will be truncated where it does
+          'tn.read_until(MEMCACHED_END)'
+
 """
-import Tkinter as tk
-from ScrolledText import ScrolledText
+try:
+    import Tkinter as tk
+except ImportError:
+    import tkinter as tk   # python 3
+# from ScrolledText import ScrolledText
 from sys import platform as _platform
 import os
 import telnetlib
@@ -62,7 +70,6 @@ def open_popup(with_this_text='', and_this_title=''):
         # FIXME
         if _platform == 'darwin':
             cmd = u'echo %s | tr -d "\n" | pbcopy' % unicode(text_widget.selection_get())
-#             print u'cmd: ' + unicode(cmd)
             os.system(cmd)
         else:
             # for some reason, the the basic tkinter clipboard interface
@@ -91,12 +98,12 @@ for line in items.split("\r\n"):
 
 
 for i in range(3):      # print some horizontal separator bars
-    print '=' * 80
-print """
+    print('=' * 80)
+print ("""
 Epoch Time:  {0}
 
 {1}
-""".format(int(time.time()), STATS_ITEM_HELP_MSG)
+""".format(int(time.time()), STATS_ITEM_HELP_MSG))
 
 root = tk.Tk()
 root.wm_title('Browsing keys in memcached at {0}:{1}   (press Q to quit)  '.format(tn.host, tn.port))
@@ -107,11 +114,11 @@ root.geometry('%dx%d+%d+%d' % (w, h, x, y))  # set dimensions of the screen and 
 
 
 def jKey(event):
-    print 'pressed letter j!'
+    print('pressed letter j!')
 root.bind('<j>', jKey)
 
 def kKey(event):
-    print 'pressed letter k!'
+    print('pressed letter k!')
 root.bind('<k>', kKey)
 
 def quit(event):
