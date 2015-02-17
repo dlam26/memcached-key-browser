@@ -32,8 +32,10 @@ try:
 except ImportError:
     import tkinter as tk   # python 3
 # from ScrolledText import ScrolledText
+from _socket import error as socketerror
 from sys import platform as _platform
 import os
+import sys
 import telnetlib
 import time
 
@@ -84,7 +86,11 @@ def open_popup(with_this_text='', and_this_title=''):
 
 
 output = ''
-tn = telnetlib.Telnet("localhost", 11211)
+try:
+    tn = telnetlib.Telnet("localhost", 11211)
+except socketerror:
+    print 'ERROR:  Memcached must be running on port 11211!'
+    sys.exit(1)
 tn.write("stats items\r\n")
 items = tn.read_until(MEMCACHED_END)
 for line in items.split("\r\n"):
