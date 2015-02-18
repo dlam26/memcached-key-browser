@@ -35,6 +35,7 @@ except ImportError:
 from _socket import error as socketerror
 from sys import platform as _platform
 import os
+import pickle
 import sys
 import telnetlib
 import time
@@ -89,7 +90,7 @@ output = ''
 try:
     tn = telnetlib.Telnet("localhost", 11211)
 except socketerror:
-    print 'ERROR:  Memcached must be running on port 11211!'
+    print('ERROR:  Memcached must be running on port 11211!')
     sys.exit(1)
 tn.write("stats items\r\n")
 items = tn.read_until(MEMCACHED_END)
@@ -142,7 +143,8 @@ listbox = tk.Listbox(list_of_keys_frame)
 listbox.configure(background='HotPink1')
 listbox.pack(fill=tk.BOTH, expand=tk.YES)
 for i, line in enumerate(output.split("\n")):
-    listbox.insert(i, line)
+    if MEMCACHED_END != line:
+        listbox.insert(i, line)
 
 # Make list of keys 70% of the screen!
 # Also .winfo_height() can return 1, so that's why we call update_idletasks()
@@ -151,7 +153,8 @@ root.update_idletasks()
 key_browser.add(list_of_keys_frame, height=root.winfo_height() * 0.70)
 
 value_display = tk.Text(key_browser, background='Orange')
-value_display.insert(tk.INSERT, 'Clicking on a key above ^ and its value will will display here.')
+value_display.insert(tk.INSERT, 'Clicking on a key above ^ and its value '
+                     'will will display here.')
 key_browser.add(value_display)
 
 scrollbar = tk.Scrollbar(listbox, orient=tk.VERTICAL)
@@ -159,16 +162,26 @@ scrollbar.config(command=listbox.yview)
 scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 listbox.config(yscrollcommand=scrollbar.set)  # moving one, moves the other
 
+def try_unpickle(val):
+    """Return python object stored as a bytestring in memcached!
+
+    >>> val_from_memcached = '\r\nVALUE :1:dadict 1 58\r\n\x80\x02}q\x01(U\x08lastnameq\x02U\x03Lamq\x03U\x03ageq\x04K\x1eU\tfirstnameq\x05U\x05Davidq\x06u.\r'
+    >>> try_unpickle(val_from_memcached)
+    {'lastname': 'Lam', 'age': 30, 'firstname': 'David'}
+    """
+    try:
+        return (True, pickle.loads(val.split('\r\n')[-2]))
+    except:
+        return (False, val)
+
 def selectedKey(event):
     """Display value of key in memcached!
 
     'event' is a tkinter.Event
-
     """
     value_display.delete("1.0", tk.END)   # clear the display
     index = event.widget.curselection()
-    cachedump_line = listbox.get(index)
-    toks = cachedump_line.split()
+    toks = listbox.get(index).split()
     try:
         if toks[0] == 'ITEM':
             key = toks[1]
@@ -176,13 +189,18 @@ def selectedKey(event):
             size = size_and_expiry[0]
             expiry = size_and_expiry[2]
             tn.write("get {0}\r\n".format(key))
-            value = tn.read_until(MEMCACHED_END)
-            value =  '\n'.join(value.split('\n')[:-1])   # remove last line, which is a END
-            print("*** value of key '{0}' of size {1} which expires {2} is... {3}".format(
-                  key, size[1:], format_epoch_timestamp(expiry), value))
+            val = tn.read_until(MEMCACHED_END)
+            was_python_object, val = try_unpickle(val)
+            print("*** value of key '{0}' of size {1} which expires {2} is... {3}".format(key, size[1:], format_epoch_timestamp(expiry), val))
 
-            value_escaped = value.decode('unicode-escape')
-            value_display.insert(tk.INSERT, value_escaped)
+            if was_python_object:
+                value_display.insert(tk.INSERT, 'Got python object!  '
+                    'Type: ' + str(type(val)) + '\n\n\t' + str(val))
+            else:
+                val = val.decode('unicode-escape')
+                # get rid of the memcached response VALUE / END pair
+                val = ''.join(val.split('\r\n')[2:-1])
+                value_display.insert(tk.INSERT, val)
 
 #           open_popup(value_escaped, 'Expires ' + format_epoch_timestamp(expiry))
 
@@ -190,5 +208,4 @@ def selectedKey(event):
         pass
 
 listbox.bind('<<ListboxSelect>>', selectedKey)
-
 tk.mainloop()
