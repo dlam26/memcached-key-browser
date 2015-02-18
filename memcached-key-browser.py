@@ -27,6 +27,8 @@
           'tn.read_until(MEMCACHED_END)'
 
 """
+global listbox
+
 try:
     import Tkinter as tk
 except ImportError:
@@ -49,6 +51,13 @@ Format:
 
 MEMCACHED_END = "END"
 popups = list()
+
+try:
+    tn = telnetlib.Telnet("localhost", 11211)
+except socketerror:
+    print('ERROR:  Memcached must be running on port 11211!')
+    sys.exit(1)
+
 
 def format_epoch_timestamp(ts):
     return time.strftime('%m/%d/%Y %I:%M %p',  time.gmtime(float(ts)))
@@ -84,24 +93,27 @@ def open_popup(with_this_text='', and_this_title=''):
     tk.Button(popup, text='Close', command=popup.destroy).grid(row=1, column=2)
     tk.Button(popup, text='Copy', command=copy_to_clipboard).grid(row=1, column=3)
 
+def refresh_stats_items_listbox():
+    listbox.delete(0, tk.END)
 
+    output = ''
+    tn.write("stats items\r\n")
+    items = tn.read_until(MEMCACHED_END)
+    try:
+        for line in items.split("\r\n"):
+            if line and line != MEMCACHED_END:
+                stat, slab, count = line.strip().split(' ')
+                items, slab_id, stat_name = slab.split(':')
+                if stat_name == 'number' and count > 0:
+                    output += '\n\n\t------------ Slab {0} -------------'.format(slab_id, count)
+                    tn.write("stats cachedump {0} {1}\r\n".format(slab_id, count))
+                    output += tn.read_until(MEMCACHED_END)
 
-output = ''
-try:
-    tn = telnetlib.Telnet("localhost", 11211)
-except socketerror:
-    print('ERROR:  Memcached must be running on port 11211!')
-    sys.exit(1)
-tn.write("stats items\r\n")
-items = tn.read_until(MEMCACHED_END)
-for line in items.split("\r\n"):
-    if line != MEMCACHED_END:
-        stat, slab, count = line.strip().split(' ')
-        items, slab_id, stat_name = slab.split(':')
-        if stat_name == 'number' and count > 0:
-            output += '\n\n\t------------ Slab {0} -------------'.format(slab_id, count)
-            tn.write("stats cachedump {0} {1}\r\n".format(slab_id, count))
-            output += tn.read_until(MEMCACHED_END)
+        for i, line in enumerate(output.split("\n")):
+            if MEMCACHED_END != line:
+                listbox.insert(i, line)
+    except Exception as exc:
+        print 'Arg! got stack!  {0!r}'.format(exc)
 
 
 for i in range(3):      # print some horizontal separator bars
@@ -118,6 +130,13 @@ w, h, ws, hs = 1000, 700,  root.winfo_screenwidth(), root.winfo_screenheight()
 x = (ws/2) - (w/2)   # find the x,y coordinates, of a centered point
 y = (hs/2) - (h/2)
 root.geometry('%dx%d+%d+%d' % (w, h, x, y))  # set dimensions of the screen and where it is placed
+
+# add a menu bar!
+menu = tk.Menu(root)
+root.config(menu=menu)
+toolsmenu = tk.Menu(menu)
+menu.add_cascade(label="Tools", menu=toolsmenu)
+toolsmenu.add_command(label="Refresh", command=refresh_stats_items_listbox)
 
 
 def jKey(event):
@@ -142,9 +161,7 @@ list_of_keys_frame.pack(fill=tk.BOTH, expand=tk.YES)
 listbox = tk.Listbox(list_of_keys_frame)
 listbox.configure(background='HotPink1')
 listbox.pack(fill=tk.BOTH, expand=tk.YES)
-for i, line in enumerate(output.split("\n")):
-    if MEMCACHED_END != line:
-        listbox.insert(i, line)
+refresh_stats_items_listbox()
 
 # Make list of keys 70% of the screen!
 # Also .winfo_height() can return 1, so that's why we call update_idletasks()
@@ -191,7 +208,7 @@ def selectedKey(event):
             tn.write("get {0}\r\n".format(key))
             val = tn.read_until(MEMCACHED_END)
             was_python_object, val = try_unpickle(val)
-            print("*** value of key '{0}' of size {1} which expires {2} is... {3}".format(key, size[1:], format_epoch_timestamp(expiry), val))
+#             print("*** value of key '{0}' of size {1} which expires {2} is... {3}".format(key, size[1:], format_epoch_timestamp(expiry), val))
 
             if was_python_object:
                 value_display.insert(tk.INSERT, 'Got python object!  '
